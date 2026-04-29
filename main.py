@@ -12,6 +12,7 @@ import os
 import pyarrow as pa
 import pyarrow.parquet as pq
 from tqdm import tqdm
+from sentence_transformers import SentenceTransformer
 
 HATHI_FILE_BASE_URL = "https://www.hathitrust.org/files/hathifiles/"
 HATHI_FILE_LIST = "hathi_file_list.json"
@@ -91,15 +92,14 @@ def convert_csv_to_parquet(csv_path: str, parquet_path):
     conn = duckdb.connect()
     _ = conn.execute(f"""
     COPY (SELECT * FROM read_csv('{csv_path}',AUTO_DETECT=TRUE))
-    TO 'f{parquet_path}' (FORMAT 'PARQUET', CODEC 'ZSTD')
+    TO '{parquet_path}' (FORMAT 'PARQUET', CODEC 'ZSTD')
     """)
 
 
-def embed_titles(parquet_path: str, batch_size: int = 10_000):
-    from sentence_transformers import SentenceTransformer
-
+def embed_titles(parquet_path: str, batch_size: int = 10000):
     db_path = parquet_path + ".duckdb"
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    print("Using device" + str(model.device))
     conn = duckdb.connect(db_path)
 
     conn.execute(f"""
@@ -149,19 +149,19 @@ def embed_titles(parquet_path: str, batch_size: int = 10_000):
 
 
 if __name__ == "__main__":
-    hfs = get_hathifiles()
+    if not os.path.exists("collection.csv"):
+        print("Getting hathifiles")
+        hfs = get_hathifiles()
+        hfs = prune_to_last_full_hathifile(hfs)
 
-    print("Getting hathifiles")
-    hfs = prune_to_last_full_hathifile(hfs)
+        print("Creating collection")
+        create_collection([hfs[0]], "collection.csv")
 
-    # print("Creating collection")
-    # create_collection([hfs[0]], "raiden.csv")
-
-    # print("Converting to parquet")
-    # convert_csv_to_parquet("raiden.csv", "raiden.parquet")
+    if not os.path.exists("collection.parquet"):
+        print("Converting to parquet")
+        convert_csv_to_parquet("collection.csv", "collection.parquet")
 
     print("Embedding titles")
-    embed_titles("raiden.parquet")
+    embed_titles("collection.parquet")
 
-    if os.path.exists("raiden.csv"):
-        os.remove("raiden.csv")
+            
