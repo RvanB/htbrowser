@@ -39,7 +39,7 @@ header {
     flex: 1;
     min-width: 200px;
 }
-.controls input[type="search"]::placeholder { color: #aaa; }
+.controls input[type="search"]::placeholder { color: #666; }
 .controls input[type="search"]:focus,
 .controls select:focus {
     outline: none;
@@ -49,7 +49,7 @@ header {
 .status-bar {
     text-align: center;
     padding: 0.45rem 0 0;
-    color: #888;
+    color: #555;
     font-style: italic;
     margin-bottom: 1em;
 }
@@ -195,9 +195,9 @@ header {
     letter-spacing: 0.01em;
 }
 .pag-buttons button:hover:not(:disabled) { background: #000; color: #fff; }
-.pag-buttons button:disabled { color: #ccc; cursor: not-allowed; }
+.pag-buttons button:disabled { color: #888; cursor: not-allowed; }
 .pag-buttons button.current { background: #000; color: #fff; font-weight: bold; }
-.pag-buttons .ellipsis { color: #bbb; cursor: pointer; font-style: italic; }
+.pag-buttons .ellipsis { color: #777; cursor: pointer; font-style: italic; }
 .pag-buttons .ellipsis:hover { background: #f0f0f0; color: #000; }
 .pag-buttons input.ellipsis-input {
     z-index: 2;
@@ -246,6 +246,13 @@ header {
     font-style: italic;
     color: #aaa;
     min-height: 1.2em;
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+    html { filter: invert(1); }
+    .cover { filter: invert(1); }
+    .card:hover .cover { filter: invert(1) grayscale(100%); mix-blend-mode: normal; }
 }
 
 /* ── Viewer modal ── */
