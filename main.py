@@ -1,5 +1,8 @@
 from datetime import datetime
 from io import BufferedWriter
+import csv
+import re
+import sys
 import duckdb
 import requests
 from dataclasses import dataclass
@@ -88,6 +91,59 @@ def create_collection(hfs: list[HathiFile], output_path: str):
             download_stream(hf.filename, f)
 
 
+def clean_title(title: str | None, author: str | None) -> str | None:
+    if not title:
+        return title
+
+    # Strip MARC 245$c statement of responsibility via " / "
+    slash = title.find(' / ')
+    if slash != -1:
+        title = title[:slash]
+
+    # Strip trailing MARC punctuation
+    title = title.strip().rstrip('.,;:/')
+
+    # Strip surrounding quotes
+    if title.startswith('"') and title.endswith('"'):
+        title = title[1:-1]
+
+    # Strip trailing MARC punctuation
+    title = title.strip().rstrip('.,;:/')
+
+    return title.strip()
+
+
+def preprocess_csv_titles(csv_path: str, output_path: str, chunksize: int = 100_000):
+    import pandas as pd
+
+    chunks = pd.read_csv(
+        csv_path, sep='\t', dtype=str, chunksize=chunksize,
+        on_bad_lines='skip', engine='c',
+        quotechar='\x00',  # disable quote handling — hathifiles are plain TSV
+    )
+
+    first = True
+    skipped_total = 0
+    with tqdm(desc="Cleaning titles", unit=" rows") as bar:
+        for chunk in chunks:
+            chunk = chunk[chunk['access'] == 'allow']
+            original = chunk['title'].fillna('')
+            cleaned = [
+                clean_title(t, a) or ''
+                for t, a in zip(original, chunk['author'].fillna(''))
+            ]
+            for orig, clean in zip(original, cleaned):
+                if len(orig) - len(clean) >= 10:
+                    tqdm.write(f"  {orig!r}\n→ {clean!r}")
+            chunk['title'] = cleaned
+            chunk.to_csv(output_path, sep='\t', index=False,
+                         mode='w' if first else 'a', header=first)
+            first = False
+            bar.update(len(chunk))
+
+    print(f"Done. Bad lines skipped by pandas are not counted separately.", file=sys.stderr)
+
+
 def convert_csv_to_parquet(
     csv_path: str,
     outpath: str,
@@ -98,8 +154,8 @@ def convert_csv_to_parquet(
     print("Sorting into temp table...")
     _ = conn.execute(f"""
         CREATE TABLE sorted AS
-        SELECT htid, title, author, rights_date_used, lang
-        FROM read_csv('{csv_path}', AUTO_DETECT=TRUE)
+        SELECT htid, title, author, TRY_CAST(rights_date_used AS INTEGER) AS rights_date_used, lang
+        FROM read_csv('{csv_path}', ALL_VARCHAR=TRUE)
         WHERE access = 'allow'
         ORDER BY lower(coalesce(title, '')), lower(coalesce(author, ''))
     """)
@@ -172,9 +228,14 @@ if __name__ == "__main__":
         print("Creating collection")
         create_collection([hfs[0]], "collection.csv")
 
-    if not os.path.exists("collection.parquet"):
-        print("Converting to parquet")
-        convert_csv_to_parquet("collection.csv", "collection.parquet")
+    print("Preprocessing titles")
+    preprocess_csv_titles("collection.csv", "collection_clean.csv")
+
+    print("Converting to parquet")
+    convert_csv_to_parquet("collection_clean.csv", "collection_temp.parquet")
+
+    os.remove("collection_clean.csv")
+    os.rename("collection_temp.parquet", "collection.parquet")
 
     # print("Embedding titles")
     # embed_titles("collection.parquet")
