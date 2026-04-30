@@ -71,8 +71,10 @@ header {
 }
 
 .card:hover {
-    background-color: hsla(220, 100%, 90%, 0.8);
-    color: white;
+    background-color: #f0f0f0;
+    /* color: white; */
+    outline: 1px solid black;
+    z-index: 2;
 }
 
 .card:hover .cover {
