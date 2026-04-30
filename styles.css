@@ -1,9 +1,22 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+    --bg: #fff;
+    --fg: #000;
+    --bg-hover: #f0f0f0;
+    --muted: #555;
+    --placeholder: #666;
+    --disabled: #888;
+    --ellipsis: #777;
+    --dot: #d0d0d0;
+    --fallback-bg: rgba(255,255,255,0.82);
+    --spinner-track: #ccc;
+}
+
 body {
     font-family: verdigris-mvb-pro-text;
-    background: #fff;
-    color: #000;
+    background: var(--bg);
+    color: var(--fg);
     min-height: 100vh;
     font-size: 10pt;
 }
@@ -14,7 +27,7 @@ body {
 
 header {
     padding: 1.25rem 0;
-    border-bottom: 1px dashed #000;
+    border-bottom: 1px dashed var(--fg);
 }
 
 .controls {
@@ -27,10 +40,10 @@ header {
 .controls input[type="search"],
 .controls select {
     padding: 0.3rem 0.55rem;
-    border: 1px solid #000;
+    border: 1px solid var(--fg);
     border-radius: 0;
-    background: #fff;
-    color: #000;
+    background: var(--bg);
+    color: var(--fg);
     font-family: inherit;
     -webkit-appearance: none;
     appearance: none;
@@ -39,17 +52,17 @@ header {
     flex: 1;
     min-width: 200px;
 }
-.controls input[type="search"]::placeholder { color: #666; }
+.controls input[type="search"]::placeholder { color: var(--placeholder); }
 .controls input[type="search"]:focus,
 .controls select:focus {
     outline: none;
-    box-shadow: 0 0 0 1px #000;
+    box-shadow: 0 0 0 1px var(--fg);
 }
 
 .status-bar {
     text-align: center;
     padding: 0.45rem 0 0;
-    color: #555;
+    color: var(--muted);
     font-style: italic;
     margin-bottom: 1em;
 }
@@ -60,20 +73,20 @@ header {
 }
 
 .card {
-    background: #fff;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
     text-decoration: none;
-    color: #000;
+    color: var(--fg);
     cursor: pointer;
     /* margin: 0.5em; */
     padding: 0.5em;
 }
 
 .card:hover {
-    background-color: #f0f0f0;
+    background-color: var(--bg-hover);
     /* color: white; */
-    outline: 1px solid black;
+    outline: 1px solid var(--fg);
     z-index: 2;
 }
 
@@ -106,19 +119,19 @@ header {
     height: 100%;
     padding: 0.75rem;
     text-align: center;
-    background-color: #fff;
-    background-image: radial-gradient(circle, #d0d0d0 0.75px, transparent 0.75px);
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, var(--dot) 0.75px, transparent 0.75px);
     background-size: 5px 5px;
 }
 .cover-fallback .fallback-title {
     /* font-size: 0.58rem; */
-    color: #222;
+    color: var(--fg);
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 6;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    background: rgba(255,255,255,0.82);
+    background: var(--fallback-bg);
     padding: 0.25rem 0.35rem;
 }
 
@@ -174,12 +187,12 @@ header {
 .pag-buttons button,
 .pag-buttons .ellipsis {
     padding: 0.4rem 0.8rem;
-    border: 1px solid #000;
+    border: 1px solid var(--fg);
     margin-left: -1px;
     /* font-size: 0.78rem; */
     font-family: inherit;
-    background: #fff;
-    color: #000;
+    background: var(--bg);
+    color: var(--fg);
     cursor: pointer;
     min-width: 2.4rem;
     display: flex;
@@ -194,11 +207,11 @@ header {
     padding-right: 1rem;
     letter-spacing: 0.01em;
 }
-.pag-buttons button:hover:not(:disabled) { background: #000; color: #fff; }
-.pag-buttons button:disabled { color: #888; cursor: not-allowed; }
-.pag-buttons button.current { background: #000; color: #fff; font-weight: bold; }
-.pag-buttons .ellipsis { color: #777; cursor: pointer; font-style: italic; }
-.pag-buttons .ellipsis:hover { background: #f0f0f0; color: #000; }
+.pag-buttons button:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+.pag-buttons button:disabled { color: var(--disabled); cursor: not-allowed; }
+.pag-buttons button.current { background: var(--fg); color: var(--bg); font-weight: bold; }
+.pag-buttons .ellipsis { color: var(--ellipsis); cursor: pointer; font-style: italic; }
+.pag-buttons .ellipsis:hover { background: var(--bg-hover); color: var(--fg); }
 .pag-buttons input.ellipsis-input {
     z-index: 2;
     /* padding: 0.4rem 0.3rem; */
@@ -222,7 +235,7 @@ header {
     justify-content: center;
     padding: 5rem 2rem;
     gap: 1rem;
-    color: #888;
+    color: var(--muted);
     text-align: center;
     grid-column: 1 / -1;
     font-style: italic;
@@ -232,8 +245,8 @@ header {
 .spinner {
     width: 22px;
     height: 22px;
-    border: 1px solid #ccc;
-    border-top-color: #000;
+    border: 1px solid var(--spinner-track);
+    border-top-color: var(--fg);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -244,16 +257,10 @@ header {
 
 #loading-msg {
     font-style: italic;
-    color: #aaa;
+    color: var(--muted);
     min-height: 1.2em;
 }
 
-/* ── Dark mode ── */
-@media (prefers-color-scheme: dark) {
-    html { filter: invert(1); }
-    .cover { filter: invert(1); }
-    .card:hover .cover { filter: invert(1) grayscale(100%); mix-blend-mode: normal; }
-}
 
 /* ── Viewer modal ── */
 #viewer-modal {
@@ -279,8 +286,8 @@ header {
     width: 92vw;
     height: 92vh;
     margin: auto;
-    background: #fff;
-    border: 1px solid #000;
+    background: var(--bg);
+    border: 1px solid var(--fg);
     overflow: hidden;
     min-height: 0;
 }
@@ -290,7 +297,7 @@ header {
     align-items: center;
     gap: 1rem;
     padding: 0.45rem 0.75rem;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid var(--fg);
     flex-shrink: 0;
 }
 
@@ -305,7 +312,7 @@ header {
 #viewer-author {
     font-size: 0.7rem;
     font-style: italic;
-    color: #555;
+    color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -313,16 +320,16 @@ header {
 
 #viewer-close {
     flex-shrink: 0;
-    background: #fff;
-    border: 1px solid #000;
-    color: #000;
+    background: var(--bg);
+    border: 1px solid var(--fg);
+    color: var(--fg);
     padding: 0.2rem 0.6rem;
     font-size: 1rem;
     line-height: 1;
     cursor: pointer;
     font-family: inherit;
 }
-#viewer-close:hover { background: #000; color: #fff; }
+#viewer-close:hover { background: var(--fg); color: var(--bg); }
 
 #viewer-frame {
     flex: 1;
@@ -330,4 +337,21 @@ header {
     border: none;
     width: 100%;
     display: block;
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #111;
+        --fg: #eee;
+        --bg-hover: #222;
+        --muted: #aaa;
+        --placeholder: #999;
+        --disabled: #666;
+        --ellipsis: #888;
+        --dot: #444;
+        --fallback-bg: rgba(0,0,0,0.75);
+        --spinner-track: #444;
+    }
+    .card:hover .cover { mix-blend-mode: screen; }
 }
