@@ -1,8 +1,12 @@
 import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/+esm';
 
 const PAGE_SIZE = 24;
+const PARQUET_BASE = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? new URL('.', window.location.href).href
+    : 'https://htbrowser-parquet.s3.us-west-1.amazonaws.com/';
+
 const PARQUET_FILES = Array.from({length: 10}, (_, i) =>
-    new URL(`collection_${String(i + 1).padStart(2, '0')}.parquet`, window.location.href).href
+    `${PARQUET_BASE}collection_${String(i + 1).padStart(2, '0')}.parquet`
 );
 
 let conn = null;
