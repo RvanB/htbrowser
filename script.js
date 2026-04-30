@@ -1,7 +1,9 @@
 import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/+esm';
 
 const PAGE_SIZE = 24;
-const PARQUET_URL = 'https://htbrowser-parquet.s3.us-west-1.amazonaws.com/hathifiles_pruned.parquet';
+const PARQUET_FILES = Array.from({length: 10}, (_, i) =>
+    new URL(`collection_${String(i + 1).padStart(2, '0')}.parquet`, window.location.href).href
+);
 
 let conn = null;
 let currentPage = 0;
@@ -12,7 +14,7 @@ let isLoading = false;
 // { key: string, total: number, rows: object[]|null }
 // rows is null when the result set exceeds ROW_CACHE_LIMIT (use OFFSET instead).
 let queryCache = null;
-const ROW_CACHE_LIMIT = 100_000;
+const ROW_CACHE_LIMIT = 500;
 
 function searchKey() {
     return JSON.stringify({
@@ -64,6 +66,10 @@ async function initDuckDB() {
     URL.revokeObjectURL(workerUrl);
 
     conn = await db.connect();
+
+    await conn.query(`
+PRAGMA enable_object_cache=true;
+`)
 }
 
 // ── Query helpers ─────────────────────────────────────────────────────────────
@@ -87,8 +93,9 @@ function buildOrderBy() {
     return sort ? `ORDER BY ${sort}` : '';
 }
 
-function fromParquet(cols = '*') {
-    return `FROM read_parquet('${PARQUET_URL}')`;
+function fromParquet() {
+    const list = PARQUET_FILES.map(u => `'${u}'`).join(', ');
+    return `FROM read_parquet([${list}])`;
 }
 
 async function runQuery(sql) {
