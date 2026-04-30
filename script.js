@@ -5,9 +5,7 @@ const PARQUET_BASE = ['localhost', '127.0.0.1'].includes(window.location.hostnam
     ? new URL('.', window.location.href).href
     : 'https://htbrowser-parquet.s3.us-west-1.amazonaws.com/';
 
-const PARQUET_FILES = Array.from({length: 10}, (_, i) =>
-    `${PARQUET_BASE}collection_${String(i + 1).padStart(2, '0')}.parquet`
-);
+const PARQUET_FILES = [`${PARQUET_BASE}collection.parquet`]
 
 let conn = null;
 let currentPage = 0;

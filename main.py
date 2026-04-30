@@ -90,14 +90,13 @@ def create_collection(hfs: list[HathiFile], output_path: str):
 
 def convert_csv_to_parquet(
     csv_path: str,
-    output_prefix: str,
-    num_parts: int = 10,
-    row_group_size: int = 100_000,
+    outpath: str,
+    row_group_size: int = 512_000,
 ):
     conn = duckdb.connect()
 
     print("Sorting into temp table...")
-    conn.execute(f"""
+    _ = conn.execute(f"""
         CREATE TABLE sorted AS
         SELECT htid, title, author, rights_date_used, lang
         FROM read_csv('{csv_path}', AUTO_DETECT=TRUE)
@@ -106,16 +105,10 @@ def convert_csv_to_parquet(
     """)
 
     total = conn.execute("SELECT COUNT(*) FROM sorted").fetchone()[0]
-    chunk_size = (total + num_parts - 1) // num_parts
-    print(f"{total:,} rows → {num_parts} parts of ~{chunk_size:,} rows each")
-
-    for i in range(num_parts):
-        part_path = f"{output_prefix}_{i+1:02d}.parquet"
-        conn.execute(f"""
-            COPY (SELECT * FROM sorted LIMIT {chunk_size} OFFSET {i * chunk_size})
-            TO '{part_path}' (FORMAT 'PARQUET', CODEC 'ZSTD', ROW_GROUP_SIZE {row_group_size})
-        """)
-        print(f"  wrote {part_path}")
+    _ = conn.execute(f"""
+        COPY (SELECT * FROM sorted)
+        TO '{outpath}' (FORMAT 'PARQUET', CODEC 'ZSTD', ROW_GROUP_SIZE {row_group_size})
+    """)
 
 
 def embed_titles(parquet_path: str, batch_size: int = 10000):
@@ -179,9 +172,9 @@ if __name__ == "__main__":
         print("Creating collection")
         create_collection([hfs[0]], "collection.csv")
 
-    if not os.path.exists("collection_01.parquet"):
+    if not os.path.exists("collection.parquet"):
         print("Converting to parquet")
-        convert_csv_to_parquet("collection.csv", "collection")
+        convert_csv_to_parquet("collection.csv", "collection.parquet")
 
     # print("Embedding titles")
     # embed_titles("collection.parquet")
