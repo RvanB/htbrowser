@@ -123,7 +123,7 @@ def embed_titles(parquet_path: str, batch_size: int = 10000):
                 break
 
             row_ids = [r[0] for r in rows]
-            titles = [r[1] for r in rows]
+            titles = [r[1] if r[1] is not None else '' for r in rows]
             embeddings = model.encode(titles, show_progress_bar=False)
 
             conn.register("_batch", pa.table({
@@ -140,7 +140,7 @@ def embed_titles(parquet_path: str, batch_size: int = 10000):
     print("Exporting to parquet...")
     tmp_path = parquet_path + ".tmp"
     conn.execute(f"""
-        COPY (SELECT * EXCLUDE (_row_id) FROM data)
+        COPY (SELECT * EXCLUDE (_row_id) FROM data WHERE access = 'allow' ORDER BY lower(title))
         TO '{tmp_path}' (FORMAT 'PARQUET', CODEC 'ZSTD')
     """)
     conn.close()
