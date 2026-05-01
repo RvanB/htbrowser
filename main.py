@@ -111,9 +111,7 @@ if __name__ == "__main__":
     create_collection([hfs[0]], "collection.csv")
 
     print("Converting to parquet")
-    convert_csv_to_parquet("collection.csv", "collection_temp.parquet")
-
-    os.remove("collection_clean.csv")
-    os.rename("collection_temp.parquet", "collection.parquet")
+    convert_csv_to_parquet("collection.csv", "collection.parquet")
+    os.remove("collection.csv")
 
             

@@ -2,13 +2,9 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-RUN python -m pip install --no-cache-dir \
-    "duckdb>=1.5.2" \
-    "pandas>=3.0.2" \
-    "pyarrow>=24.0.0" \
-    "python-dateutil>=2.9.0.post0" \
-    "requests>=2.33.1" \
-    "tqdm>=4.67.3"
+COPY requirements.txt ./
+
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
 
