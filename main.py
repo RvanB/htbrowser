@@ -1,21 +1,12 @@
 from datetime import datetime
 from io import BufferedWriter
-import csv
-import re
-import sys
 import duckdb
 import requests
 from dataclasses import dataclass
 import json
 from dateutil import parser
-import tempfile
 import gzip
-import io
 import os
-import pyarrow as pa
-import pyarrow.parquet as pq
-from tqdm import tqdm
-from sentence_transformers import SentenceTransformer
 
 HATHI_FILE_BASE_URL = "https://www.hathitrust.org/files/hathifiles/"
 HATHI_FILE_LIST = "hathi_file_list.json"
@@ -33,7 +24,6 @@ class HathiFile:
 
 
 def get_hathifiles():
-    header = []
     response = requests.get(HATHI_FILE_BASE_URL + HATHI_FILE_LIST)
 
     hfs = []
@@ -90,60 +80,6 @@ def create_collection(hfs: list[HathiFile], output_path: str):
         for hf in hfs:
             download_stream(hf.filename, f)
 
-
-def clean_title(title: str | None, author: str | None) -> str | None:
-    if not title:
-        return title
-
-    # Strip MARC 245$c statement of responsibility via " / "
-    slash = title.find(' / ')
-    if slash != -1:
-        title = title[:slash]
-
-    # Strip trailing MARC punctuation
-    title = title.strip().rstrip('.,;:/')
-
-    # Strip surrounding quotes
-    if title.startswith('"') and title.endswith('"'):
-        title = title[1:-1]
-
-    # Strip trailing MARC punctuation
-    title = title.strip().rstrip('.,;:/')
-
-    return title.strip()
-
-
-def preprocess_csv_titles(csv_path: str, output_path: str, chunksize: int = 100_000):
-    import pandas as pd
-
-    chunks = pd.read_csv(
-        csv_path, sep='\t', dtype=str, chunksize=chunksize,
-        on_bad_lines='skip', engine='c',
-        quotechar='\x00',  # disable quote handling — hathifiles are plain TSV
-    )
-
-    first = True
-    skipped_total = 0
-    with tqdm(desc="Cleaning titles", unit=" rows") as bar:
-        for chunk in chunks:
-            chunk = chunk[chunk['access'] == 'allow']
-            original = chunk['title'].fillna('')
-            cleaned = [
-                clean_title(t, a) or ''
-                for t, a in zip(original, chunk['author'].fillna(''))
-            ]
-            for orig, clean in zip(original, cleaned):
-                if len(orig) - len(clean) >= 10:
-                    tqdm.write(f"  {orig!r}\n→ {clean!r}")
-            chunk['title'] = cleaned
-            chunk.to_csv(output_path, sep='\t', index=False,
-                         mode='w' if first else 'a', header=first)
-            first = False
-            bar.update(len(chunk))
-
-    print(f"Done. Bad lines skipped by pandas are not counted separately.", file=sys.stderr)
-
-
 def convert_csv_to_parquet(
     csv_path: str,
     outpath: str,
@@ -160,84 +96,24 @@ def convert_csv_to_parquet(
         ORDER BY lower(coalesce(title, '')), lower(coalesce(author, ''))
     """)
 
-    total = conn.execute("SELECT COUNT(*) FROM sorted").fetchone()[0]
     _ = conn.execute(f"""
         COPY (SELECT * FROM sorted)
         TO '{outpath}' (FORMAT 'PARQUET', CODEC 'ZSTD', ROW_GROUP_SIZE {row_group_size})
     """)
 
 
-def embed_titles(parquet_path: str, batch_size: int = 10000):
-    db_path = parquet_path + ".duckdb"
-    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    print("Using device" + str(model.device))
-    conn = duckdb.connect(db_path)
-
-    conn.execute(f"""
-        CREATE TABLE IF NOT EXISTS data AS
-        SELECT row_number() OVER () AS _row_id, *, NULL::FLOAT[] AS title_embedding
-        FROM read_parquet('{parquet_path}')
-    """)
-
-    total = conn.execute("SELECT COUNT(*) FROM data").fetchone()[0]
-    done = conn.execute("SELECT COUNT(*) FROM data WHERE title_embedding IS NOT NULL").fetchone()[0]
-
-    with tqdm(total=total, initial=done, unit="rows") as bar:
-        while True:
-            rows = conn.execute(f"""
-                SELECT _row_id, title FROM data
-                WHERE title_embedding IS NULL
-                LIMIT {batch_size}
-            """).fetchall()
-
-            if not rows:
-                break
-
-            row_ids = [r[0] for r in rows]
-            titles = [r[1] if r[1] is not None else '' for r in rows]
-            embeddings = model.encode(titles, show_progress_bar=False)
-
-            conn.register("_batch", pa.table({
-                "_row_id": pa.array(row_ids, type=pa.int64()),
-                "title_embedding": pa.array(embeddings.tolist(), type=pa.list_(pa.float32())),
-            }))
-            conn.execute("""
-                UPDATE data SET title_embedding = _batch.title_embedding
-                FROM _batch WHERE data._row_id = _batch._row_id
-            """)
-            conn.unregister("_batch")
-            bar.update(len(rows))
-
-    print("Exporting to parquet...")
-    tmp_path = parquet_path + ".tmp"
-    conn.execute(f"""
-        COPY (SELECT * EXCLUDE (_row_id) FROM data WHERE access = 'allow' ORDER BY lower(title))
-        TO '{tmp_path}' (FORMAT 'PARQUET', CODEC 'ZSTD')
-    """)
-    conn.close()
-    os.replace(tmp_path, parquet_path)
-    os.remove(db_path)
-
-
 if __name__ == "__main__":
-    if not os.path.exists("collection.csv"):
-        print("Getting hathifiles")
-        hfs = get_hathifiles()
-        hfs = prune_to_last_full_hathifile(hfs)
+    print("Getting hathifiles")
+    hfs = get_hathifiles()
+    hfs = prune_to_last_full_hathifile(hfs)
 
-        print("Creating collection")
-        create_collection([hfs[0]], "collection.csv")
-
-    print("Preprocessing titles")
-    preprocess_csv_titles("collection.csv", "collection_clean.csv")
+    print("Creating collection")
+    create_collection([hfs[0]], "collection.csv")
 
     print("Converting to parquet")
-    convert_csv_to_parquet("collection_clean.csv", "collection_temp.parquet")
+    convert_csv_to_parquet("collection.csv", "collection_temp.parquet")
 
     os.remove("collection_clean.csv")
     os.rename("collection_temp.parquet", "collection.parquet")
-
-    # print("Embedding titles")
-    # embed_titles("collection.parquet")
 
             
